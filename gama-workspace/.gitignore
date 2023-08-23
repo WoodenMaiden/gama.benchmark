@@ -3,4 +3,5 @@
 .metadata/
 .cache/
 .settings/
+.snapshot/
 .project

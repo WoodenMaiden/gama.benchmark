@@ -76,8 +76,8 @@ public class Main {
                     }
                 }
 
-                System.out.println("Stats: " + results);
-                Main.writeObject("results" , results);
+                String resultFile = Main.writeObject("results" , results);
+                System.out.println("Result File: " + resultFile);
 
             } catch (IOException ex) {
                 System.out.print("JMX: ");
