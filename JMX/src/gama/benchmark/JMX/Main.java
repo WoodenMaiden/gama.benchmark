@@ -1,11 +1,13 @@
 package gama.benchmark.JMX;
 
 import static java.lang.management.ManagementFactory.*;
+import static org.apache.commons.lang3.math.NumberUtils.isCreatable;
 
 import java.io.*;
 import java.lang.management.RuntimeMXBean;
 import java.lang.management.MemoryMXBean;
 import java.lang.reflect.UndeclaredThrowableException;
+
 
 import javax.management.MBeanServerConnection;
 import javax.management.remote.JMXConnector;
@@ -18,10 +20,24 @@ import com.sun.tools.attach.*;
 import com.sun.management.OperatingSystemMXBean;
 
 public class Main {
-    public static void main(String[] args) {
-        if (args.length != 1)
+    private static final ProcessBuilder process =
+            new ProcessBuilder()
+                .redirectOutput(ProcessBuilder.Redirect.DISCARD)
+                .redirectError (ProcessBuilder.Redirect.DISCARD);
+
+
+    public static void main(String[] args) throws IOException {
+        process.command(args);
+
+        if (args.length < 1) {
             System.err.println("Usage: java CmdLineTool <pid>");
-        else if (pollStats(args[0])) return;
+            System.err.println("OR: ");
+            System.err.println("Usage: java CmdLineTool <a command spawning a JVM>");
+        }
+        else if (isCreatable(args[0]) && pollStats(args[0])) return; // to attach to a running process
+        else if ( // to create a new process and attach to it
+            pollStats(String.valueOf(process.start().pid()))
+        ) return;
 
         System.out.println("Currently running");
         for (VirtualMachineDescriptor vmd : VirtualMachine.list())
@@ -30,6 +46,8 @@ public class Main {
 
     private static boolean pollStats(String id) {
         try {
+            System.out.println("Attaching to " + id);
+
             VirtualMachine vm = VirtualMachine.attach(id);
 
             System.out.println("Connected to " + vm.id());
