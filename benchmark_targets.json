@@ -1,0 +1,13 @@
+[
+    {
+        "useCase": "ListIteration",
+        "experimentsFiles": [
+            {
+                "filename": "experiments/ListIterationWithLoopWithSize10.xml",
+                "experimentName": "Iteration with loop",
+                "N": 10
+            }
+        ],
+        "numberOfRuns": 5
+    }
+]

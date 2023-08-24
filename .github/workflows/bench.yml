@@ -5,7 +5,8 @@ on:
 
 env:
   JAVA_HOME: /opt/gama-platform/jdk
-#  PATH: ${{ env.JAVA_HOME }}/bin:${{ env.PATH }}
+  METRICS_FILE: /tmp/results.csv
+  REPORT_FILE: /tmp/report.pdf
 
 jobs:
   benchmark:
@@ -14,6 +15,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
+      - name: Install jq
+        uses: dcarbone/install-jq-action@v1.0.1
 
       - name: Install Gama
         shell: bash
@@ -23,17 +26,36 @@ jobs:
           sudo dpkg -i GAMA_1.9.1_Linux_with_JDK.deb
           PATH="$PATH:/opt/gama-platform/jdk/bin"
 
-      - name: Gradle Build Action
-        uses: gradle/gradle-build-action@v2.7.1
-        with:
-          gradle-version: current
 
-      - name: Run Models in gama-workspace
+      - name: Run experiments
         working-directory: JMX
         shell: bash
         run: |
-          TARGET_EQUINOX_CP=$(ls /opt/gama-platform/plugins/org.eclipse.equinox.launcher*.jar)
+          set -e
+          export TARGET_EQUINOX_CP=$(ls /opt/gama-platform/plugins/org.eclipse.equinox.launcher*.jar)
           
-          gradle run \
-            --args="java -cp $TARGET_EQUINOX_CP -Djava.awt.headless=true org.eclipse.core.launcher.Main -application msi.gama.headless.product" \
-            | grep "Result File:" | cut -d':' -f2
+            echo '"Experiment name","N","CPU load","Memory consumed (bytes)","Execution time (ms)"' > "$METRICS_FILE"
+          
+          jq -c '.[]' ../benchmark_targets.json | while read usecase; do
+            usecase_dir=$(echo "$usecase" | jq -r '.["useCase"]')
+            number_of_runs=$(echo "$usecase" | jq -r '.["numberOfRuns"]')
+            
+            echo "$usecase" | jq -c '.["experimentsFiles"][]' | while read experiment; do
+              experiment_file="../$(echo $experiment | jq -r '.["filename"]')"
+              N=$(echo "$experiment" | jq -r '.["N"]')
+              experiment_name=$(echo "$experiment" | jq -r '.["experimentName"]')
+          
+              for i in $(seq 1 $number_of_runs); do
+                echo -e "\t $(echo $experiment | jq -r '.["filename"]'): $i/$number_of_runs"
+        
+                result_file=$(./gradlew run \
+                  --args="java -cp $TARGET_EQUINOX_CP -Djava.awt.headless=true org.eclipse.core.launcher.Main -application msi.gama.headless.product $experiment_file /tmp" \
+                  | grep "Result File:" | cut -d':' -f2)
+          
+                echo "\"$experiment_name\",$N,$(jq -r '.["cpuLoad"]' $result_file),$(jq -r '.["totalPhysicalMemorySize"]' $result_file),$(jq -r '.["duration"]' $result_file)" >> "$METRICS_FILE"
+              done
+            done 
+          done
+          
+          echo "Done! Here are the results" 
+          cat "$METRICS_FILE"
