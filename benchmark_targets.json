@@ -3,9 +3,29 @@
         "useCase": "ListIteration",
         "experimentsFiles": [
             {
-                "filename": "experiments/ListIterationWithLoopWithSize10.xml",
-                "experimentName": "Iteration with loop",
+                "filename": "experiments/Read10AgentsWithAsk.xml",
+                "experimentName": "Iteration with ask",
                 "N": 10
+            },
+            {
+                "filename": "experiments/Read50AgentsWithAsk.xml",
+                "experimentName": "Iteration with ask",
+                "N": 50
+            },
+            {
+                "filename": "experiments/Read100AgentsWithAsk.xml",
+                "experimentName": "Iteration with ask",
+                "N": 100
+            },
+            {
+                "filename": "experiments/Read500AgentsWithAsk.xml",
+                "experimentName": "Iteration with ask",
+                "N": 500
+            },
+            {
+                "filename": "experiments/Read1000AgentsWithAsk.xml",
+                "experimentName": "Iteration with ask",
+                "N": 1000
             }
         ],
         "numberOfRuns": 5
