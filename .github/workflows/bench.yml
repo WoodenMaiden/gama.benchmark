@@ -36,6 +36,11 @@ jobs:
 
       - uses: r-lib/actions/setup-pandoc@v2
 
+      - name: Gradle Build Action
+        uses: gradle/gradle-build-action@v2.7.1
+        with:
+          gradle-version: current
+
       - name: Install Gama
         shell: bash
         working-directory: /tmp
@@ -67,7 +72,7 @@ jobs:
                 echo -e "\t $(echo $experiment | jq -r '.["filename"]'): $i/$number_of_runs"
                 passWork=/tmp/.workspace$(find /tmp -name ".workspace*" | wc -l)
         
-                result_file=$(./gradlew run \
+                result_file=$(gradle run \
                   --args="java -cp $TARGET_EQUINOX_CP -Djava.awt.headless=true org.eclipse.core.launcher.Main -configuration $HEADLESS_CONF -application msi.gama.headless.product -data $passWork $experiment_file /tmp" \
                   | grep "Result File:" | cut -d':' -f2)
           
