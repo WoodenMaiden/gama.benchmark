@@ -64,8 +64,7 @@ public class Main {
                 );
 
 
-                ProcessMetricsCollector.Results results =
-                        new ProcessMetricsCollector.Results(0,0.0,0);
+                ProcessMetricsCollector.Results results = new ProcessMetricsCollector.Results();
 
                 while (true) { // it is not documented but an Exception is thrown when the attached process stops
                     try {

@@ -1,6 +1,9 @@
 package gama.benchmark.JMX;
 
-import java.lang.management.*;
+import java.lang.management.RuntimeMXBean;
+import java.lang.management.MemoryMXBean;
+import java.util.ArrayList;
+
 import com.sun.management.OperatingSystemMXBean;
 import lombok.*;
 
@@ -15,6 +18,7 @@ public class ProcessMetricsCollector {
     private RuntimeMXBean runtimeMXBean;
     private MemoryMXBean memoryMXBean;
 
+    public static ArrayList<Double> CPUTimes = new ArrayList<>();
 
     @ToString
     @AllArgsConstructor
@@ -22,7 +26,7 @@ public class ProcessMetricsCollector {
     public static class Results {
 
         @Getter
-        private long totalPhysicalMemorySize;
+        private long totalMemoryUsed;
 
         @Getter
         private double cpuLoad;
@@ -34,8 +38,14 @@ public class ProcessMetricsCollector {
 
     public Results pollStats() {
         long duration = runtimeMXBean.getUptime();
-        long totalPhysicalMemorySize = operatingSystemMXBean.getTotalPhysicalMemorySize();
-        double cpuLoad = operatingSystemMXBean.getSystemCpuLoad();
-        return new Results(totalPhysicalMemorySize, cpuLoad, duration);
+        long totalMemoryUsed = memoryMXBean.getHeapMemoryUsage().getUsed() + memoryMXBean.getNonHeapMemoryUsage().getUsed();
+
+        CPUTimes.add(operatingSystemMXBean.getProcessCpuLoad());
+
+        return new Results(
+                totalMemoryUsed,
+            CPUTimes.stream().reduce(0.0, Double::sum) / CPUTimes.size(),
+            duration
+        );
     }
 }

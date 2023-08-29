@@ -1,6 +1,6 @@
 [
     {
-        "useCase": "ListIteration",
+        "useCase": "List iteration",
         "experimentsFiles": [
             {
                 "filename": "experiments/Read10AgentsWithAsk.xml",
@@ -26,8 +26,18 @@
                 "filename": "experiments/Read1000AgentsWithAsk.xml",
                 "experimentName": "Iteration with ask",
                 "N": 1000
+            },
+            {
+                "filename": "experiments/Read5000AgentsWithAsk.xml",
+                "experimentName": "Iteration with ask",
+                "N": 5000
+            },
+            {
+                "filename": "experiments/Read10000AgentsWithAsk.xml",
+                "experimentName": "Iteration with ask",
+                "N": 10000
             }
         ],
-        "numberOfRuns": 5
+        "numberOfRuns": 10
     }
 ]

@@ -2,7 +2,7 @@
 <Experiment_plan>
     <Simulation experiment="ReadNAgentsWithAsk" finalStep="1000000000000000" id="0" seed="1.0" sourcePath="../gama-workspace/ListIteration/models/ListIterationWithAsk.gaml">
         <Parameters>
-            <Parameter name="N" type="INT" value="500" var="list_size"/>
+            <Parameter name="N" type="INT" value="10000" var="list_size"/>
         </Parameters>
         <Outputs>
         </Outputs>

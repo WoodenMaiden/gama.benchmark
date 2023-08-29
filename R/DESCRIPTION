@@ -10,4 +10,6 @@ Encoding: UTF-8
 Imports:
     dplyr,
     rmarkdown,
-    ggplot2
+    ggplot2,
+    gtools,
+    prettyunits

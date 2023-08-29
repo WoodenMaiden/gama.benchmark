@@ -13,7 +13,7 @@ env:
 jobs:
   benchmark:
     name: Benchmarking
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
 
     steps:
       - uses: actions/checkout@v3
@@ -29,9 +29,6 @@ jobs:
         uses: r-lib/actions/setup-r-dependencies@v2
         with:
           cache-version: 1
-          extra-packages: |
-            ggplot2
-            dplyr    
           working-directory: R
 
       - uses: r-lib/actions/setup-pandoc@v2
@@ -48,7 +45,6 @@ jobs:
           wget --show-progress https://github.com/gama-platform/gama/releases/download/1.9.1/GAMA_1.9.1_Linux_with_JDK.deb 
           sudo dpkg -i GAMA_1.9.1_Linux_with_JDK.deb
           PATH="$PATH:/opt/gama-platform/jdk/bin"
-          mkdir $(dirname "$METRICS_FILE")
 
 
       - name: Run experiments
@@ -58,37 +54,43 @@ jobs:
           set -e
           export TARGET_EQUINOX_CP=$(ls /opt/gama-platform/plugins/org.eclipse.equinox.launcher*.jar)
           
+          mkdir $(dirname "$METRICS_FILE")
           echo '"Experiment name","N","CPU load","Memory consumed (bytes)","Execution time (ms)"' > "$METRICS_FILE"
           
           jq -c '.[]' ../benchmark_targets.json | while read usecase; do
+            echo "$( echo $usecase | jq -r '.["useCase"]')"
+            echo "=========================="
             number_of_runs=$(echo "$usecase" | jq -r '.["numberOfRuns"]')
             
             echo "$usecase" | jq -c '.["experimentsFiles"][]' | while read experiment; do
+              echo "$experiment"
               experiment_file="../$(echo $experiment | jq -r '.["filename"]')"
               N=$(echo "$experiment" | jq -r '.["N"]')
               experiment_name=$(echo "$experiment" | jq -r '.["experimentName"]')
           
               for i in $(seq 1 $number_of_runs); do
                 echo -e "\t $(echo $experiment | jq -r '.["filename"]'): $i/$number_of_runs"
-                passWork=/tmp/.workspace$(find /tmp -name ".workspace*" | wc -l)
+                passWork=/tmp/.workspace$(sudo find /tmp -name ".workspace*" | wc -l)
         
                 result_file=$(gradle run \
                   --args="java -cp $TARGET_EQUINOX_CP -Djava.awt.headless=true org.eclipse.core.launcher.Main -configuration $HEADLESS_CONF -application msi.gama.headless.product -data $passWork $experiment_file /tmp" \
-                  | grep "Result File:" | cut -d':' -f2)
+                  < /dev/null | grep "Result File:" | cut -d':' -f2) # the < /dev/null part prevents gradle from consuming input as it stops the experiment loop early 
           
-                echo "\"$experiment_name\",$N,$(jq -r '.["cpuLoad"]' $result_file),$(jq -r '.["totalPhysicalMemorySize"]' $result_file),$(jq -r '.["duration"]' $result_file)" >> "$METRICS_FILE"
+                echo "\"$experiment_name\",$N,$(jq -r '.["cpuLoad"]' $result_file),$(jq -r '.["totalMemoryUsed"]' $result_file),$(jq -r '.["duration"]' $result_file)" >> "$METRICS_FILE"
               done
             done 
           done
           
-          echo "Done! Here are the results" 
-          cat "$METRICS_FILE"
+          echo "Done!" 
 
       - name: Knit Rmarkdown report
         working-directory: R
-        run: Rscript -e 'rmarkdown::render("report.Rmd", output_format = "all", output_dir = "/tmp/results")'
+        run: |
+          Rscript -e 'rmarkdown::render("report.Rmd", output_format = "all", output_dir = "/tmp/results")'
+          mv *.png /tmp/results
 
-      - shell: bash
+      - name: Zip results
+        shell: bash
         run: |
           zip -r "$REPORT_FILE" $(dirname "$METRICS_FILE")
 
@@ -97,4 +99,4 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: results.zip
-          path: $REPORT_FILE
+          path: ${{ env.REPORT_FILE }}
