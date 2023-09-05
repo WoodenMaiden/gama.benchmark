@@ -1,27 +1,13 @@
 ---
 title: "Benchmark report"
 author: "ACROSS lab"
-date: ""
+date: "`r format(Sys.time(), '%d %B, %Y - %X')`"
 output: pdf_document
+params:
+  metrics_report_file: "/tmp/results/results.csv"
+  gha_runner: "unknown-OS"
 ---
 
-# Setup
-
-This benchmark runs on Github Actions standard runners, as of August 2023 here are the specs.
-
-## Software
-
-- Gama 1.9.1
-- JDK: Eclipse Temurin 17 (bundled with java)
-- Ubuntu 20.04
-
-## Hardware
-
-- 2-core CPU (x86_64)
-- 7 GB of RAM
-- 14 GB of SSD space
-
-# Results
 
 ```{r setup, include=FALSE}
 # Setup what's necessary
@@ -31,7 +17,13 @@ library(dplyr)
 library(gtools)
 library(prettyunits)
 
-metrics_report_file <- "/tmp/results/results.csv"
+metrics_report_file <- params$metrics_report_file
+
+gha_runner <- tools::toTitleCase(
+  sub("-", " ", params$gha_runner)
+)
+
+is_mac <- grepl("Macos", gha_runner, ignore.case=TRUE)
 
 data <- read.table(
   metrics_report_file,
@@ -106,6 +98,24 @@ for (experiment in unique(data$"Experiment name")) {
 }
 ```
 
+# Setup
+
+This benchmark runs on Github Actions standard runners, as of September 2023 here are the specs.
+
+## Software
+
+- Gama 1.9.1
+- JDK: Eclipse Temurin 17 (bundled with gama)
+- `r gha_runner`
+
+## Hardware
+
+- `r if (is_mac) 3  else 2`-core CPU (x86_64)
+- `r if (is_mac) 14 else 7` GB of RAM
+- 14 GB of SSD space
+
+# Results
+
 ```{r, echo=FALSE, results="asis"}
 for (experiment in unique(data$"Experiment name")) {
   cat(paste("##", experiment, sep = " "), "\n\n")
@@ -118,9 +128,4 @@ for (experiment in unique(data$"Experiment name")) {
 
   cat(paste("![", experiment, "](./", experiment, "_mem.png){width=50%}",  sep=""), "\n\n")
 }
-```
-
-
-```{r, echo=FALSE}
-paste("Generated on", format(Sys.time(), "%a %b %d %X %Y"), sep=" ")
 ```

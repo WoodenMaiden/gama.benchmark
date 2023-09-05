@@ -13,8 +13,16 @@ env:
 
 jobs:
   benchmark:
-    name: Benchmarking
-    runs-on: ubuntu-20.04
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-20.04, macos-13, windows-2022]
+
+    name: Benchmarking on ${{ matrix.runner }}
+    runs-on: ${{ matrix.runner }}
+
+    env:
+      GHA_RUNNER: ${{ matrix.runner }}
 
     steps:
       - uses: actions/checkout@v3
@@ -87,7 +95,12 @@ jobs:
       - name: Knit Rmarkdown report
         working-directory: R
         run: |
-          Rscript -e 'rmarkdown::render("report.Rmd", output_format = "all", output_dir = "/tmp/results")'
+          Rscript -e 'rmarkdown::render(
+            "report.Rmd",
+            params = list( gha_runner = "ubuntu-20.04", metrics_report_file = "${{ env.METRICS_FILE }}" ),)  
+            output_format = "all", 
+            output_dir = "/tmp/results"
+          )'
           mv *.png /tmp/results
 
       - name: Upload results4
