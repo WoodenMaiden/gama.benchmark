@@ -6,7 +6,8 @@ on:
 env:
   JAVA_HOME: /opt/gama-platform/jdk
   METRICS_FILE: /tmp/results/results.csv
-  REPORT_FILE: /tmp/results.zip
+  OUTPUT_DIR: /tmp/results
+  REPORT_FILE: results.zip
   HEADLESS_CONF: /opt/gama-platform/headless/configuration
   DEBIAN_FRONTEND: noninteractive
 
@@ -54,7 +55,7 @@ jobs:
           set -e
           export TARGET_EQUINOX_CP=$(ls /opt/gama-platform/plugins/org.eclipse.equinox.launcher*.jar)
           
-          mkdir $(dirname "$METRICS_FILE")
+          mkdir "$OUTPUT_DIR"
           echo '"Experiment name","N","CPU load","Memory consumed (bytes)","Execution time (ms)"' > "$METRICS_FILE"
           
           jq -c '.[]' ../benchmark_targets.json | while read usecase; do
@@ -89,14 +90,9 @@ jobs:
           Rscript -e 'rmarkdown::render("report.Rmd", output_format = "all", output_dir = "/tmp/results")'
           mv *.png /tmp/results
 
-      - name: Zip results
-        shell: bash
-        run: |
-          zip -r "$REPORT_FILE" $(dirname "$METRICS_FILE")
-
       - name: Upload results4
         if: ${{ !env.ACT }} # skip during local actions testing
         uses: actions/upload-artifact@v3
         with:
-          name: results.zip
-          path: ${{ env.REPORT_FILE }}
+          name: ${{ env.REPORT_FILE }}
+          path: ${{ env.OUTPUT_DIR }}
