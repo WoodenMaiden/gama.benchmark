@@ -1,0 +1,104 @@
+name: 'Download and setup gama'
+description: 'Download and setup gama'
+inputs:
+  release:
+    description: "Gama's release"
+    required: false
+    default: '1.9.2'
+outputs: 
+  target_equinox: 
+    description: "Equinox JAR used for GAMA to run"
+    value: ${{ steps.install.outputs.target_equinox }}
+  java_home:
+    description: "Java home path"
+    value: ${{ steps.install.outputs.java_home }}
+  java_exec: 
+    description: "Java executable"
+    value: ${{ steps.install.outputs.java_home }}/bin/java
+  conf_file:
+    description: "Configuration file"
+    value: ${{ steps.install.outputs.conf_file }}
+runs:
+  using: "composite"
+  steps: 
+    - name: Set correct variables
+      shell: bash
+      id: os-variables
+      env: 
+        RELEASE: ${{ inputs.release }}
+      run: |
+        if [[ "$RUNNER_OS" == "macOS" ]]; then
+          echo "filename=GAMA_${RELEASE}_MacOS_with_JDK.dmg" >> "$GITHUB_OUTPUT"
+        elif [[ "$RUNNER_OS" == "Windows" ]]; then
+          echo "::error title=Windows Detected::Windows is not supported yet!"
+          exit 1
+        else
+          echo "filename=GAMA_${RELEASE}_Linux_with_JDK.deb" >> "$GITHUB_OUTPUT"
+        fi
+
+    - name: Attempting to restore gama from cache
+      uses: actions/cache/restore@v3
+      id: cache-gama-restore
+      with:
+        path: ${{ runner.temp }}/gama 
+        key: ${{ runner.os }}-${{ inputs.release }}-gama
+
+    - name: Download gama ${{ inputs.release }} for ${{ inputs.runner }}
+      uses: robinraju/release-downloader@v1.8
+      if: steps.cache-gama-restore.outputs.cache-hit != 'true'
+      with:
+        repository: gama-platform/gama
+        latest: false
+        tag: ${{ inputs.release }}
+        out-file-path: ${{ runner.temp }}/gama
+        zipBall: false
+        tarBall: false
+        filename: ${{ steps.os-variables.outputs.filename }}
+
+
+    - name: Save gama to cache
+      uses: actions/cache/save@v3
+      if: steps.cache-gama-restore.outputs.cache-hit != 'true'
+      id: cache-gama-save
+      with:
+        path: ${{ runner.temp }}/gama
+        key: ${{ runner.os }}-${{ inputs.release }}-gama
+
+    - name: Install gama to the system
+      id: install
+      shell: bash
+      working-directory: ${{ runner.temp }}/gama
+      env: 
+        FILENAME: ${{ steps.os-variables.outputs.filename }}
+
+      # Mac OS part comes from https://gist.github.com/durkinza/ca7e1aa02bd4901c08c496d97d2e0daa
+      run: |
+        if [[ "$RUNNER_OS" == "macOS" ]]; then
+          apps_folder='/Applications'
+
+          app_location=$(sudo hdiutil attach "$FILENAME" | tail -n 1 | tr -s "[:blank:]" "\n")
+          app_disk=$(echo $app_location | tr -s " " "\n" | head -n 1)
+          app_volume=$(echo $app_location | tr -s " " "\n" | tail -n 1)
+          
+          app=`find $app_volume/. -name *.app -maxdepth 1 -type d -print0`
+          cp -r $app $apps_folder
+          
+          hdiutil detach $app_disk
+
+          EQUINOX="$(ls $apps_folder/Gama.app/Contents/Eclipse/plugins/org.eclipse.equinox.launcher*.jar)"
+          echo "Found Equinox: $EQUINOX"
+          
+          echo "target_equinox=${EQUINOX}" >> "$GITHUB_OUTPUT"
+          echo "java_home=$apps_folder/Gama.app/Contents/jdk/Contents/Home" >> "$GITHUB_OUTPUT"
+          echo "conf_file=$apps_folder/Gama.app/Contents/headless/configuration" >> "$GITHUB_OUTPUT"
+
+        else
+          sudo dpkg -i $FILENAME
+
+          EQUINOX="$(ls /opt/gama-platform/plugins/org.eclipse.equinox.launcher*.jar)"
+          echo "Found Equinox: $EQUINOX"
+
+          echo "target_equinox=${EQUINOX}" >> "$GITHUB_OUTPUT"
+          echo "java_home=/opt/gama-platform/jdk" >> "$GITHUB_OUTPUT"
+          echo "conf_file=/opt/gama-platform/headless/configuration" >> "$GITHUB_OUTPUT"
+        fi

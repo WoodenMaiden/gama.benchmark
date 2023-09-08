@@ -4,11 +4,7 @@ on:
   workflow_dispatch:
 
 env:
-  JAVA_HOME: /opt/gama-platform/jdk
-  METRICS_FILE: /tmp/results/results.csv
-  OUTPUT_DIR: /tmp/results
   REPORT_FILE: results.zip
-  HEADLESS_CONF: /opt/gama-platform/headless/configuration
   DEBIAN_FRONTEND: noninteractive
 
 jobs:
@@ -16,16 +12,22 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        runner: [ubuntu-20.04, macos-13, windows-2022]
+        runner: 
+          - ubuntu-20.04
+          - macos-13 
+          # - windows-2022
 
-    name: Benchmarking on ${{ matrix.runner }}
+    name: ${{ matrix.runner }}
     runs-on: ${{ matrix.runner }}
-
-    env:
-      GHA_RUNNER: ${{ matrix.runner }}
 
     steps:
       - uses: actions/checkout@v3
+
+      - name: Install Gama or restore it from cache
+        id: install_gama
+        uses: ./.github/crossplatform_actions/setup_gama
+        with:
+          release: 1.9.2
 
       - name: Install jq
         uses: dcarbone/install-jq-action@v1.0.1
@@ -47,22 +49,30 @@ jobs:
         with:
           gradle-version: current
 
-      - name: Install Gama
-        shell: bash
-        working-directory: /tmp
-        run: |
-          wget --show-progress https://github.com/gama-platform/gama/releases/download/1.9.1/GAMA_1.9.1_Linux_with_JDK.deb 
-          sudo apt install ./GAMA_1.9.1_Linux_with_JDK.deb
-          PATH="$PATH:/opt/gama-platform/jdk/bin"
-
 
       - name: Run experiments
         working-directory: JMX
         shell: bash
+        env: 
+          METRICS_FILE: ${{ runner.temp }}/results/results.csv
+          OUTPUT_DIR: ${{ runner.temp }}/results
+          
+          JAVA_HOME: ${{ steps.install_gama.outputs.java_home }}
+          JAVA: ${{ steps.install_gama.outputs.java_exec }}
+          TARGET_EQUINOX_CP: ${{ steps.install_gama.outputs.target_equinox }}
+          HEADLESS_CONF: ${{ steps.install_gama.outputs.conf_file }}
         run: |
           set -e
-          export TARGET_EQUINOX_CP=$(ls /opt/gama-platform/plugins/org.eclipse.equinox.launcher*.jar)
           
+          echo "Let's get started!"
+          echo "JAVA_HOME: $JAVA_HOME"
+          echo "JAVA: $JAVA"
+
+          "$JAVA" -version
+
+          echo "TARGET_EQUINOX_CP: $TARGET_EQUINOX_CP"
+          echo "HEADLESS_CONF: $HEADLESS_CONF"
+
           mkdir "$OUTPUT_DIR"
           echo '"Experiment name","N","CPU load","Memory consumed (bytes)","Execution time (ms)"' > "$METRICS_FILE"
           
@@ -79,10 +89,10 @@ jobs:
           
               for i in $(seq 1 $number_of_runs); do
                 echo -e "\t $(echo $experiment | jq -r '.["filename"]'): $i/$number_of_runs"
-                passWork=/tmp/.workspace$(sudo find /tmp -name ".workspace*" | wc -l)
+                passWork=${{ runner.temp }}/.workspace$(sudo find ${{ runner.temp }} -name ".workspace*" | wc -l)
         
                 result_file=$(gradle run \
-                  --args="java -cp $TARGET_EQUINOX_CP -Djava.awt.headless=true org.eclipse.core.launcher.Main -configuration $HEADLESS_CONF -application msi.gama.headless.product -data $passWork $experiment_file /tmp" \
+                  --args="$JAVA -cp $TARGET_EQUINOX_CP -Djava.awt.headless=true org.eclipse.core.launcher.Main -configuration $HEADLESS_CONF -application msi.gama.headless.product -data $passWork $experiment_file ${{ runner.temp }}" \
                   < /dev/null | grep "Result File:" | cut -d':' -f2) # the < /dev/null part prevents gradle from consuming input as it stops the experiment loop early 
           
                 echo "\"$experiment_name\",$N,$(jq -r '.["cpuLoad"]' $result_file),$(jq -r '.["totalMemoryUsed"]' $result_file),$(jq -r '.["duration"]' $result_file)" >> "$METRICS_FILE"
@@ -99,9 +109,9 @@ jobs:
             "report.Rmd",
             params = list( gha_runner = "ubuntu-20.04", metrics_report_file = "${{ env.METRICS_FILE }}" ),)  
             output_format = "all", 
-            output_dir = "/tmp/results"
+            output_dir = "${{ runner.temp }}/results"
           )'
-          mv *.png /tmp/results
+          mv *.png ${{ runner.temp }}/results
 
       - name: Upload results4
         if: ${{ !env.ACT }} # skip during local actions testing
