@@ -52,6 +52,7 @@ jobs:
 
       - name: Run experiments
         working-directory: JMX
+        id: benchmark
         shell: bash
         env: 
           METRICS_FILE: ${{ runner.temp }}/results/results.csv
@@ -99,6 +100,8 @@ jobs:
               done
             done 
           done
+
+          echo "metrics_file=${METRICS_FILE}" >> "$GITHUB_OUTPUT"
           
           echo "Done!" 
 
@@ -107,7 +110,10 @@ jobs:
         run: |
           Rscript -e 'rmarkdown::render(
             "report.Rmd",
-            params = list( gha_runner = "ubuntu-20.04", metrics_report_file = "${{ env.METRICS_FILE }}" ),)  
+            params = list( 
+              gha_runner = "${{ matrix.runner }}", 
+              metrics_report_file = "${{ steps.benchmark.outputs.metrics_file }}"
+            ),  
             output_format = "all", 
             output_dir = "${{ runner.temp }}/results"
           )'
