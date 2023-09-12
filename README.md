@@ -6,13 +6,14 @@ This repo aims to benchmark Gama's performance on different use cases. Said benc
 
 ## Tools used
 
-- [Gama](https://gama-platform.org/) is the simulation platform that will be benchmarked.
+- [Gama](https://gama-platform.org/) (v1.9.1) is the simulation platform that will be benchmarked.
 - GitHub actions to run the benchmark.
-- Java.
+- Java
+- [Gradle](https://gradle.org/) to build the JMX tool.
 - [R](https://www.r-project.org/) to generate the report from the results of the benchmark.
 
 ## Contents of the repo
-This repo contains 3 things: 
+This repo contains 5 things: 
 
 - A Java tool to record the performance of an experiment run by attaching to Gama's JVM through JMX.
 - A Gama workspace containing models that aims to benchmark certain use cases.
