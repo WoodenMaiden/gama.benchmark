@@ -44,7 +44,7 @@ jobs:
         working-directory: /tmp
         run: |
           wget --show-progress https://github.com/gama-platform/gama/releases/download/1.9.1/GAMA_1.9.1_Linux_with_JDK.deb 
-          sudo dpkg -i GAMA_1.9.1_Linux_with_JDK.deb
+          sudo apt install ./GAMA_1.9.1_Linux_with_JDK.deb
           PATH="$PATH:/opt/gama-platform/jdk/bin"
 
 
