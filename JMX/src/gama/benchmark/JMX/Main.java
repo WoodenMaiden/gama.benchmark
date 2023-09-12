@@ -50,7 +50,7 @@ public class Main {
 
             VirtualMachine vm = VirtualMachine.attach(id);
 
-            System.out.println("Connected to " + vm.id());
+            System.out.println("Attached to the vm");
 
             try {
                 Main.writeObject("sys-properties", vm.getSystemProperties());
@@ -68,7 +68,8 @@ public class Main {
 
                 while (true) { // it is not documented but an Exception is thrown when the attached process stops
                     try {
-                         results = collector.pollStats();
+                        System.out.println("Polling data: ");
+                        results = collector.pollStats();
                     } catch (UndeclaredThrowableException exception) {
                         System.out.println("Process has stopped!");
                         break;
@@ -94,6 +95,7 @@ public class Main {
     // requires Java 8, alternative below the code
     static MBeanServerConnection connect(VirtualMachine vm) throws IOException {
         String connectorAddress = vm.startLocalManagementAgent();
+        System.out.println("Connecting to: " + connectorAddress);
         JMXConnector c = JMXConnectorFactory.connect(new JMXServiceURL(connectorAddress));
         return c.getMBeanServerConnection();
     }
@@ -104,6 +106,7 @@ public class Main {
     static String writeObject(String suffix, Object toBeWritten) throws IOException {
         ObjectMapper mapper = new ObjectMapper();
         File file = File.createTempFile("benchmark", suffix);
+        file.setReadable(true, /*ownerOnly*/ false);
 
         new FileOutputStream(
                 file,

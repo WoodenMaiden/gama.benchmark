@@ -62,6 +62,10 @@ jobs:
           JAVA: ${{ steps.install_gama.outputs.java_exec }}
           TARGET_EQUINOX_CP: ${{ steps.install_gama.outputs.target_equinox }}
           HEADLESS_CONF: ${{ steps.install_gama.outputs.conf_file }}
+
+
+          # the < /dev/null part prevents gradle from consuming input as it stops the experiment loop early 
+          # the '2>&1 | tee -a x' part allows us to pipe both stdout and stderr to a log file
         run: |
           set -e
           
@@ -78,8 +82,8 @@ jobs:
           echo '"Experiment name","N","CPU load","Memory consumed (bytes)","Execution time (ms)"' > "$METRICS_FILE"
           
           jq -c '.[]' ../benchmark_targets.json | while read usecase; do
-            echo "$( echo $usecase | jq -r '.["useCase"]')"
-            echo "=========================="
+            echo "$( echo $usecase | jq -r '.["useCase"]')" | tee -a ${{ runner.temp }}/log
+            echo "==========================" | tee -a ${{ runner.temp }}/log
             number_of_runs=$(echo "$usecase" | jq -r '.["numberOfRuns"]')
             
             echo "$usecase" | jq -c '.["experimentsFiles"][]' | while read experiment; do
@@ -92,9 +96,9 @@ jobs:
                 echo -e "\t $(echo $experiment | jq -r '.["filename"]'): $i/$number_of_runs"
                 passWork=${{ runner.temp }}/.workspace$(sudo find ${{ runner.temp }} -name ".workspace*" | wc -l)
         
-                result_file=$(gradle run \
+                result_file=$(sudo gradle run \
                   --args="$JAVA -cp $TARGET_EQUINOX_CP -Djava.awt.headless=true org.eclipse.core.launcher.Main -configuration $HEADLESS_CONF -application msi.gama.headless.product -data $passWork $experiment_file ${{ runner.temp }}" \
-                  < /dev/null | grep "Result File:" | cut -d':' -f2) # the < /dev/null part prevents gradle from consuming input as it stops the experiment loop early 
+                  < /dev/null 2>&1 | tee -a ${{ runner.temp }}/log | grep "Result File:" | cut -d':' -f2)
           
                 echo "\"$experiment_name\",$N,$(jq -r '.["cpuLoad"]' $result_file),$(jq -r '.["totalMemoryUsed"]' $result_file),$(jq -r '.["duration"]' $result_file)" >> "$METRICS_FILE"
               done
@@ -122,6 +126,13 @@ jobs:
       - name: Upload results4
         if: ${{ !env.ACT }} # skip during local actions testing
         uses: actions/upload-artifact@v3
+        env:
+          OUTPUT_DIR: ${{ runner.temp }}/results
         with:
-          name: ${{ env.REPORT_FILE }}
+          name: ${{ matrix.runner }}-results
           path: ${{ env.OUTPUT_DIR }}
+
+      - name: Logs of all the benchmark runs
+        if: always()
+        run: |
+          cat ${{ runner.temp }}/log
