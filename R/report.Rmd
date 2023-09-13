@@ -1,0 +1,126 @@
+---
+title: "Benchmark report"
+author: "ACROSS lab"
+date: ""
+output: pdf_document
+---
+
+# Setup
+
+This benchmark runs on Github Actions standard runners, as of August 2023 here are the specs.
+
+## Software
+
+- Gama 1.9.1
+- JDK: Eclipse Temurin 17 (bundled with java)
+- Ubuntu 20.04
+
+## Hardware
+
+- 2-core CPU (x86_64)
+- 7 GB of RAM
+- 14 GB of SSD space
+
+# Results
+
+```{r setup, include=FALSE}
+# Setup what's necessary
+knitr::opts_chunk$set(echo = TRUE)
+library(ggplot2)
+library(dplyr)
+library(gtools)
+library(prettyunits)
+
+metrics_report_file <- "/tmp/results/results.csv"
+
+data <- read.table(
+  metrics_report_file,
+  header=T,
+  sep=",",
+  strip.white=T,
+  stringsAsFactors=F,
+  check.names=FALSE,
+  colClasses=c("N"="character")
+)
+
+aggregate <- function(data, column) {
+  data %>%
+    select(c("N", column)) %>%
+    group_by(N) %>%
+    summarise_at(
+      vars(column),
+      list(mean = mean, min = min, max = max, `standard deviation` = sd),
+    )
+}
+
+base_bar_plot <- function(data, ylabel, color = "blue", present_as = NULL) {
+  ggplot(data, aes(x = N, y = mean)) +
+    geom_col(stat="identity", position = "dodge", fill = color) +
+    geom_text(
+      aes(label = paste(
+        "min=", if (present_as == "bytes")
+            pretty_bytes(min, style="6")
+          else if (present_as == "percentage")
+            sprintf("%0.2f%%", min * 100)
+          else min, "\n",
+        "max=", if (present_as == "bytes")
+            pretty_bytes(max, style="6")
+          else if (present_as == "percentage")
+            sprintf("%0.2f%%", max * 100)
+          else max, "\n",
+        "σ=",formatC(`standard deviation`, format = "e", digits = 2),
+        sep="")
+      ),
+      size      = 3.5,
+      color     = "#fbf1c7",
+      vjust     = 1.6
+    ) +
+    scale_x_discrete(limits = mixedsort(data$N)) + # Sort the x axis as it is considered a string not an int
+    xlab("N: Input Size") +
+    ylab(ylabel) +
+    theme_minimal()
+}
+
+nb_of_executions <- data %>%
+  group_by(`Experiment name`, N) %>%
+  count() # Since they are all equal we will take this shortcut
+
+nb_of_executions <- nb_of_executions[[1, "n"]]
+
+for (experiment in unique(data$"Experiment name")) {
+  experiment_data <- data %>%
+    filter(data$"Experiment name" == experiment)
+
+  exec_time <- aggregate(experiment_data, "Execution time (ms)")
+  cpu_load  <- aggregate(experiment_data, "CPU load")
+  mem_usage <- aggregate(experiment_data, "Memory consumed (bytes)")
+
+  plot_time <- base_bar_plot(exec_time, "Execution time (ms)", "#076678", "time") + ggtitle("Average time taken depending on input")
+  plot_cpu  <- base_bar_plot(cpu_load,  "CPU load", "#d65d0e", "percentage") + ggtitle("Average CPU usage depending on input")
+  plot_mem  <- base_bar_plot(mem_usage, "Memory consumed (bytes)", "#98971a", "bytes") + ggtitle("Average memory usage depending on input")
+
+  # Save the plot as an image
+  ggsave(filename = paste(experiment, "_time.png", sep=""), plot = plot_time)
+  ggsave(filename = paste(experiment, "_cpu.png" , sep=""), plot = plot_cpu)
+  ggsave(filename = paste(experiment, "_mem.png" , sep=""), plot = plot_mem)
+}
+```
+
+```{r, echo=FALSE, results="asis"}
+for (experiment in unique(data$"Experiment name")) {
+  cat(paste("##", experiment, sep = " "), "\n\n")
+
+  cat(paste("Experiment have been run", nb_of_executions, "times for each input size", sep=" "), "\n\n")
+
+  cat(paste("![", experiment, "](./", experiment, "_time.png){width=50%}", sep=""), "")
+
+  cat(paste("![", experiment, "](./", experiment, "_cpu.png){width=50%}",  sep=""), "")
+
+  cat(paste("![", experiment, "](./", experiment, "_mem.png){width=50%}",  sep=""), "\n\n")
+}
+```
+
+
+```{r, echo=FALSE}
+paste("Generated on", format(Sys.time(), "%a %b %d %X %Y"), sep=" ")
+```

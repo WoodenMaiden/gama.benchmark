@@ -1,0 +1,15 @@
+Package: BenchmarkReport
+Title: Gama Benchmark Report
+Version: 0.0.1
+Authors@R:
+    person("Yann", "POMIE", , "yann.pomie@ird.fr", role = c("intern"),
+           comment = c())
+Description: Markdown file used for the Gama Benchmark Report
+License: use_gpl3_license()
+Encoding: UTF-8
+Imports:
+    dplyr,
+    rmarkdown,
+    ggplot2,
+    gtools,
+    prettyunits
