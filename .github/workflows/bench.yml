@@ -93,14 +93,17 @@ jobs:
               experiment_name=$(echo "$experiment" | jq -r '.["experimentName"]')
           
               for i in $(seq 1 $number_of_runs); do
+                sudo lsof -i
                 echo -e "\t $(echo $experiment | jq -r '.["filename"]'): $i/$number_of_runs"
                 passWork=${{ runner.temp }}/.workspace$(sudo find ${{ runner.temp }} -name ".workspace*" | wc -l)
+
+                sleep 1
         
                 result_file=$(sudo gradle run \
-                  --args="$JAVA -cp $TARGET_EQUINOX_CP -Djava.awt.headless=true org.eclipse.core.launcher.Main -configuration $HEADLESS_CONF -application msi.gama.headless.product -data $passWork $experiment_file ${{ runner.temp }}" \
+                  --args="$JAVA -Dcom.sun.management.jmxremote -cp $TARGET_EQUINOX_CP -Djava.awt.headless=true org.eclipse.core.launcher.Main -configuration $HEADLESS_CONF -application msi.gama.headless.product -data $passWork $experiment_file ${{ runner.temp }}" \
                   < /dev/null 2>&1 | tee -a ${{ runner.temp }}/log | grep "Result File:" | cut -d':' -f2)
           
-                echo "\"$experiment_name\",$N,$(jq -r '.["cpuLoad"]' $result_file),$(jq -r '.["totalMemoryUsed"]' $result_file),$(jq -r '.["duration"]' $result_file)" >> "$METRICS_FILE"
+                sudo cat $result_file | jq -r '"\"$experiment_name\",$N,\(.["cpuLoad"]),\(.["totalMemoryUsed"]),\(.["duration"])"' >> "$METRICS_FILE"
               done
             done 
           done

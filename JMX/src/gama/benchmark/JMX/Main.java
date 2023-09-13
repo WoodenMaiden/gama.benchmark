@@ -7,6 +7,7 @@ import java.io.*;
 import java.lang.management.RuntimeMXBean;
 import java.lang.management.MemoryMXBean;
 import java.lang.reflect.UndeclaredThrowableException;
+import java.time.Instant;
 
 
 import javax.management.MBeanServerConnection;
@@ -24,7 +25,6 @@ public class Main {
             new ProcessBuilder()
                 .redirectOutput(ProcessBuilder.Redirect.DISCARD)
                 .redirectError (ProcessBuilder.Redirect.DISCARD);
-
 
     public static void main(String[] args) throws IOException {
         process.command(args);
@@ -46,6 +46,7 @@ public class Main {
 
     private static boolean pollStats(String id) {
         try {
+            Thread.sleep(1000);
             System.out.println("Attaching to " + id);
 
             VirtualMachine vm = VirtualMachine.attach(id);
@@ -68,7 +69,7 @@ public class Main {
 
                 while (true) { // it is not documented but an Exception is thrown when the attached process stops
                     try {
-                        System.out.println("Polling data: ");
+                        System.out.print("Polling data" + ".".repeat((int) Instant.now().getEpochSecond() % 10) + "\r");
                         results = collector.pollStats();
                     } catch (UndeclaredThrowableException exception) {
                         System.out.println("Process has stopped!");
@@ -84,9 +85,16 @@ public class Main {
                 ex.printStackTrace();
             }
 
-            vm.detach();
+            try {
+                vm.detach();
+            } catch (Exception ex) {
+                System.out.print("Detach: ");
+                ex.printStackTrace();
+            }
+
             return true;
-        } catch (AttachNotSupportedException | IOException ex) {
+        } catch (AttachNotSupportedException | IOException | InterruptedException ex) {
+            System.out.print("Attach: ");
             ex.printStackTrace();
         }
         return false;
@@ -97,6 +105,7 @@ public class Main {
         String connectorAddress = vm.startLocalManagementAgent();
         System.out.println("Connecting to: " + connectorAddress);
         JMXConnector c = JMXConnectorFactory.connect(new JMXServiceURL(connectorAddress));
+        System.out.println("Connected!");
         return c.getMBeanServerConnection();
     }
 
