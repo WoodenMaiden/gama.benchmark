@@ -2,6 +2,12 @@ name: Benchmarking
 
 on:
   workflow_dispatch:
+    inputs:
+      tag: 
+        default: 1.9.2
+        description: 'The Gama version to benchmark'
+        type: string
+        required: true
 
 env:
   REPORT_FILE: results.zip
@@ -15,7 +21,7 @@ jobs:
         runner: 
           - ubuntu-20.04
           - macos-13 
-          # - windows-2022
+          - windows-2022
 
     name: ${{ matrix.runner }}
     runs-on: ${{ matrix.runner }}
@@ -27,7 +33,7 @@ jobs:
         id: install_gama
         uses: ./.github/crossplatform_actions/setup_gama
         with:
-          release: 1.9.2
+          release: ${{ inputs.tag }}
 
       - name: Install jq
         uses: dcarbone/install-jq-action@v1.0.1
@@ -79,6 +85,7 @@ jobs:
           echo "HEADLESS_CONF: $HEADLESS_CONF"
 
           mkdir "$OUTPUT_DIR"
+          touch ${{ runner.temp }}/log
           echo '"Experiment name","N","CPU load","Memory consumed (bytes)","Execution time (ms)"' > "$METRICS_FILE"
           
           jq -c '.[]' ../benchmark_targets.json | while read usecase; do
@@ -136,6 +143,6 @@ jobs:
           path: ${{ env.OUTPUT_DIR }}
 
       - name: Logs of all the benchmark runs
-        if: always()
+        if: steps.benchmark.conclusion == 'success' || steps.benchmark.conclusion == 'failure'
         run: |
           cat ${{ runner.temp }}/log

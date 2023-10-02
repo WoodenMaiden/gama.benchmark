@@ -30,8 +30,7 @@ runs:
         if [[ "$RUNNER_OS" == "macOS" ]]; then
           echo "filename=GAMA_${RELEASE}_MacOS_with_JDK.dmg" >> "$GITHUB_OUTPUT"
         elif [[ "$RUNNER_OS" == "Windows" ]]; then
-          echo "::error title=Windows Detected::Windows is not supported yet!"
-          exit 1
+          echo "filename=GAMA_${RELEASE}_Windows_with_JDK.zip" >> "$GITHUB_OUTPUT"
         else
           echo "filename=GAMA_${RELEASE}_Linux_with_JDK.deb" >> "$GITHUB_OUTPUT"
         fi
@@ -91,6 +90,16 @@ runs:
           echo "target_equinox=${EQUINOX}" >> "$GITHUB_OUTPUT"
           echo "java_home=$apps_folder/Gama.app/Contents/jdk/Contents/Home" >> "$GITHUB_OUTPUT"
           echo "conf_file=$apps_folder/Gama.app/Contents/headless/configuration" >> "$GITHUB_OUTPUT"
+
+        elif [[ "$RUNNER_OS" == "Windows" ]]; then
+          7z x $FILENAME -o"/d/a/Gama" -y
+
+          EQUINOX="$(ls /d/a/Gama/plugins/org.eclipse.equinox.launcher*.jar)"
+          echo "Found Equinox: $EQUINOX"
+
+          echo "target_equinox=${EQUINOX}" >> "$GITHUB_OUTPUT"
+          echo 'java_home=/d/a/Gama/jdk' >> "$GITHUB_OUTPUT"
+          echo 'conf_file=/d/a/Gama/headless/configuration' >> "$GITHUB_OUTPUT"
 
         else
           sudo dpkg -i $FILENAME
